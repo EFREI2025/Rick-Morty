@@ -8,62 +8,42 @@
 import SwiftUI
 
 struct CharacterListView: View {
-    let character : Character
-    @State private var isFavorite = false
+    @StateObject private var viewModel = CharacterListViewModel()
     var body: some View {
-        ScrollView {
-            VStack(spacing:16) {
-                AsyncImage(url: URL(string: character.image)){
-                    image in image.resizable()
-                        .scaledToFit()
-                } placeholder: {
-                    ProgressView ()
+        NavigationStack {
+            VStack{
+                TextField("Rechercher un personnage",text: $viewModel.searchText).textFieldStyle(.roundedBorder).padding()
+                if viewModel.isLoading {
+                    ProgressView("Chargement...")
+                }else if let error = viewModel.errorMessage{
+                    Text(error).foregroundColor(.red)}
+                else {
+                    List(viewModel.filteredCharacters){
+                        character in NavigationLink {
+                            CharacterDetailView(character: character)
+                        }label: {
+                            HStack {
+                                AsyncImage(url:URL(string:character.image)){
+                                    image in image.resizable()
+                                }
+                            placeholder: {
+                                Color.gray.opacity(0.3)
+                            }
+                            .frame(width: 60, height:60)
+                            .clipShape(RoundedRectangle(cornerRadius:8))
+                                VStack(alignment:.leading){
+                                    Text(character.name).font(.headline)
+                                    Text("\(character.status) \(character.species)").font(.subheadline).foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    .listStyle(.plain)
                 }
-                .frame(maxWidth: .infinity)
-                    .background(Color.black.opacity(0.1))
-                Text(character.name).font(.largeTitle).bold()
-                Text("\(character.status) \(character.species) \(character.gender)").font(.subheadline).foregroundColor(.secondary)
-                VStack(alignment: .leading, spacing: 8){
-                    Text("Origine:\(character.origin.name)")
-                    Text("Derniére localisation: \(character.location.name)")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-                Button {
-                    isFavorite.toggle()
-                }label: {
-                    Label(isFavorite ? "Retirer des favoris" : "Ajouter aux favoris", systemImage: isFavorite ? "heart.fill" : "heart").padding()
-                        .frame(maxWidth: .infinity).background(isFavorite ? Color.red : Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                }
-                .padding(.horizontal)
+            .navigationTitle("Rick & Morty").task {
+                await viewModel.fetchCharacters()
             }
-            .padding()
-        }
-        .navigationTitle("Rick & Morty")
-        .toolbar {
-            NavigationLink {
-                FeedbackFormView()
-            } label: {
-                Image(systemName: "square.and.pencil")
             }
         }
-
-        .navigationTitle(character.name)
-        .navigationBarTitleDisplayMode(.inline)
     }
-}
-
-#Preview {
-    CharacterListView( character: Character(
-        id: 1,
-        name: "Rick Sanchez",
-        status: "Alive",
-        species: "Human",
-        gender: "Male",
-        image: "https://rickandmortyapi.com/api/character/avatar/1.jpeg",
-        origin: .init(name: "Earth"),
-        location: .init(name: "Citadel of Ricks")
-    ))
-}
